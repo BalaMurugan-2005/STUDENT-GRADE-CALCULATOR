@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mark Entry</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { background: #f5f5f5; }
+        .header { background: #2c3e50; color: white; padding: 15px; }
+        .container { padding: 20px; }
+        .card { background: white; padding: 20px; margin: 10px 0; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .tabs { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; cursor: pointer; border: 1px solid transparent; }
+        .tab.active { border: 1px solid #ddd; border-bottom: 1px solid white; border-radius: 5px 5px 0 0; background: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .form-group { margin: 15px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        .btn { background: #3498db; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        .btn-success { background: #27ae60; }
+        .btn-danger { background: #e74c3c; }
+        .speech-btn { background: #9b59b6; }
+        .active-field { border-color: #3498db !important; box-shadow: 0 0 5px #3498db; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Mark Entry System</h2>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('markEntry')">Mark Entry</div>
+            <div class="tab" onclick="switchTab('submissions')">Submissions</div>
+            <div class="tab" onclick="switchTab('published')">Published Results</div>
+        </div>
+
+        <!-- Mark Entry Tab -->
+        <div id="markEntry" class="tab-content active">
+            <div class="card">
+                <h3>Student Verification</h3>
+                <div class="form-group">
+                    <label>Search Student</label>
+                    <input type="text" id="searchStudent" placeholder="Enter student name or registration number">
+                </div>
+                <button class="btn" onclick="searchStudent()">Search</button>
+                
+                <div id="studentInfo" style="display: none; margin-top: 20px;">
+                    <h4>Student Details</h4>
+                    <p>Name: <span id="verifyName">-</span></p>
+                    <p>Registration No: <span id="verifyRegNo">-</span></p>
+                    <p>Class: <span id="verifyClass">-</span></p>
+                    <button class="btn btn-success" onclick="startMarkEntry()">Correct - Proceed to Mark Entry</button>
+                </div>
+            </div>
+
+            <div class="card" id="markEntrySection" style="display: none;">
+                <h3>Mark Entry</h3>
+                <button class="btn speech-btn" onclick="startSpeechRecognition()">🎤 Voice Entry</button>
+                
+                <form id="marksForm">
+                    <div class="form-group">
+                        <label>Mathematics</label>
+                        <input type="number" id="maths" min="0" max="100" class="mark-field">
+                    </div>
+                    <div class="form-group">
+                        <label>Science</label>
+                        <input type="number" id="science" min="0" max="100" class="mark-field">
+                    </div>
+                    <div class="form-group">
+                        <label>English</label>
+                        <input type="number" id="english" min="0" max="100" class="mark-field">
+                    </div>
+                    <div class="form-group">
+                        <label>History</label>
+                        <input type="number" id="history" min="0" max="100" class="mark-field">
+                    </div>
+                    <div class="form-group">
+                        <label>Art</label>
+                        <input type="number" id="art" min="0" max="100" class="mark-field">
+                    </div>
+                    
+                    <div class="card">
+                        <h4>Summary</h4>
+                        <p>Total: <span id="totalMarks">0</span></p>
+                        <p>Average: <span id="averageMarks">0</span></p>
+                        <p>Grade: <span id="calculatedGrade">-</span></p>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success">Submit Marks</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Submissions Tab -->
+        <div id="submissions" class="tab-content">
+            <div class="card">
+                <h3>Submitted Marks</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Reg No</th>
+                            <th>Class</th>
+                            <th>Total Marks</th>
+                            <th>Grade</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="submissionsTable">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Published Results Tab -->
+        <div id="published" class="tab-content">
+            <div class="card">
+                <h3>Published Results</h3>
+                <button class="btn btn-success" onclick="publishResults()">Publish All Results</button>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Reg No</th>
+                            <th>Class</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="publishedTable">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStudent = null;
+        let currentFieldIndex = 0;
+        const markFields = ['maths', 'science', 'english', 'history', 'art'];
+        let recognition = null;
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function searchStudent() {
+            const searchTerm = document.getElementById('searchStudent').value.toLowerCase();
+            
+            fetch('../json/studentdetails.json')
+                .then(response => response.json())
+                .then(data => {
+                    const student = data.students.find(s => 
+                        s.name.toLowerCase().includes(searchTerm) || 
+                        s.regno.includes(searchTerm)
+                    );
+                    
+                    if (student) {
+                        currentStudent = student;
+                        document.getElementById('verifyName').textContent = student.name;
+                        document.getElementById('verifyRegNo').textContent = student.regno;
+                        document.getElementById('verifyClass').textContent = student.class;
+                        document.getElementById('studentInfo').style.display = 'block';
+                    } else {
+                        alert('Student not found!');
+                    }
+                });
+        }
+
+        function startMarkEntry() {
+            document.getElementById('markEntrySection').style.display = 'block';
+            document.getElementById('studentInfo').style.display = 'none';
+        }
+
+        function startSpeechRecognition() {
+            if (!('webkitSpeechRecognition' in window)) {
+                alert('Speech recognition not supported in this browser');
+                return;
+            }
+
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            
+            recognition.onstart = function() {
+                alert('Speak the marks for ' + markFields[currentFieldIndex]);
+            };
+            
+            recognition.onresult = function(event) {
+                const spokenText = event.results[0][0].transcript;
+                const marks = parseInt(spokenText);
+                
+                if (!isNaN(marks) && marks >= 0 && marks <= 100) {
+                    document.getElementById(markFields[currentFieldIndex]).value = marks;
+                    calculateSummary();
+                    moveToNextField();
+                } else {
+                    alert('Please speak a number between 0 and 100');
+                }
+            };
+            
+            recognition.onerror = function(event) {
+                alert('Error occurred in recognition: ' + event.error);
+            };
+            
+            recognition.start();
+        }
+
+        function moveToNextField() {
+            // Remove active class from current field
+            document.getElementById(markFields[currentFieldIndex]).classList.remove('active-field');
+            
+            // Move to next field
+            currentFieldIndex++;
+            if (currentFieldIndex < markFields.length) {
+                document.getElementById(markFields[currentFieldIndex]).classList.add('active-field');
+                document.getElementById(markFields[currentFieldIndex]).focus();
+            } else {
+                currentFieldIndex = 0;
+                alert('All marks entered!');
+            }
+        }
+
+        function calculateSummary() {
+            let total = 0;
+            let count = 0;
+            
+            markFields.forEach(field => {
+                const value = parseInt(document.getElementById(field).value) || 0;
+                total += value;
+                if (value > 0) count++;
+            });
+            
+            const average = count > 0 ? total / count : 0;
+            const grade = calculateGrade(average);
+            
+            document.getElementById('totalMarks').textContent = total;
+            document.getElementById('averageMarks').textContent = average.toFixed(2);
+            document.getElementById('calculatedGrade').textContent = grade;
+        }
+
+        function calculateGrade(average) {
+            if (average >= 90) return 'A+';
+            if (average >= 80) return 'A';
+            if (average >= 70) return 'B';
+            if (average >= 60) return 'C';
+            if (average >= 50) return 'D';
+            if (average >= 40) return 'E';
+            return 'F';
+        }
+
+        // Add event listeners for manual input
+        markFields.forEach(field => {
+            document.getElementById(field).addEventListener('input', calculateSummary);
+        });
+
+        document.getElementById('marksForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!currentStudent) {
+                alert('Please verify student first!');
+                return;
+            }
+            
+            const marks = {
+                Mathematics: parseInt(document.getElementById('maths').value) || 0,
+                Science: parseInt(document.getElementById('science').value) || 0,
+                English: parseInt(document.getElementById('english').value) || 0,
+                History: parseInt(document.getElementById('history').value) || 0,
+                Art: parseInt(document.getElementById('art').value) || 0
+            };
+            
+            // In a real application, you would save to JSON here
+            alert('Marks submitted successfully for ' + currentStudent.name);
+            this.reset();
+            calculateSummary();
+        });
+
+        // Load submissions
+        function loadSubmissions() {
+            fetch('../json/studentmarksdetails.json')
+                .then(response => response.json())
+                .then(data => {
+                    const table = document.getElementById('submissionsTable');
+                    table.innerHTML = '';
+                    
+                    data.marks.forEach(student => {
+                        const total = Object.values(student.subjects).reduce((sum, mark) => sum + mark, 0);
+                        const average = total / Object.keys(student.subjects).length;
+                        const grade = calculateGrade(average);
+                        
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${student.name}</td>
+                            <td>${student.regno}</td>
+                            <td>${student.class}</td>
+                            <td>${total}</td>
+                            <td>${grade}</td>
+                            <td>
+                                <button class="btn" onclick="editMarks('${student.regno}')">Edit</button>
+                            </td>
+                        `;
+                        table.appendChild(row);
+                    });
+                });
+        }
+
+        function editMarks(regno) {
+            alert('Edit marks for student: ' + regno);
+            // Implementation for editing marks
+        }
+
+        function publishResults() {
+            if (confirm('Are you sure you want to publish all results? This will notify all students.')) {
+                alert('Results published successfully!');
+                // Implementation for publishing results
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSubmissions();
+            // Set first field as active for speech recognition
+            document.getElementById(markFields[0]).classList.add('active-field');
+        });
+    </script>
+</body>
+</html>
